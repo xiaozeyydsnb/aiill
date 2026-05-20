@@ -10,6 +10,7 @@ local function LoadModule(name)
     end)
 
     if not ok then
+        warn("加载失败: "..name)
         return
     end
 
@@ -19,5 +20,11 @@ local function LoadModule(name)
         return fn()
     end
 end
+
+if getgenv().XiaoZeLoaded then
+    return
+end
+
+getgenv().XiaoZeLoaded = true
 
 LoadModule("main")
