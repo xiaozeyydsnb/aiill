@@ -359,3 +359,545 @@ TabCommon:Button({
                 speaker.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.
 
 return ESP
+
+
+-- 以下是透视ESP功能
+--// 小泽 ESP 终极稳定版
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
+
+local LP = Players.LocalPlayer
+
+--================ 设置 =================--
+
+local Settings = {
+
+    Enabled = false,
+
+    Box = false,
+    Name = false,
+    Health = false,
+    Distance = false,
+    Tracer = false,
+
+    NPC = false,
+    TeamCheck = false
+}
+
+--================ GUI =================--
+
+local Gui = Instance.new("ScreenGui")
+pcall(function()
+    Gui.Parent = game.CoreGui
+end)
+
+Gui.ResetOnSpawn = false
+
+local Main = Instance.new("Frame")
+Main.Parent = Gui
+Main.Size = UDim2.new(0,190,0,35)
+Main.Position = UDim2.new(0,20,0.35,0)
+Main.BackgroundColor3 = Color3.fromRGB(18,18,18)
+Main.BorderSizePixel = 0
+
+Instance.new("UICorner",Main)
+
+local Title = Instance.new("TextLabel")
+Title.Parent = Main
+Title.Size = UDim2.new(1,0,0,35)
+Title.BackgroundTransparency = 1
+Title.Text = "小泽 ESP"
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 22
+Title.TextColor3 = Color3.new(1,1,1)
+
+local OpenButton = Instance.new("TextButton")
+OpenButton.Parent = Main
+OpenButton.Size = UDim2.new(0,30,0,30)
+OpenButton.Position = UDim2.new(1,-35,0,2)
+OpenButton.Text = "+"
+OpenButton.TextColor3 = Color3.new(1,1,1)
+OpenButton.BackgroundColor3 = Color3.fromRGB(30,30,30)
+
+Instance.new("UICorner",OpenButton)
+
+--================ 人数显示 =================--
+
+local CountText = Instance.new("TextLabel")
+CountText.Parent = Gui
+CountText.Size = UDim2.new(0,400,0,30)
+CountText.Position = UDim2.new(0.5,-200,0,5)
+CountText.BackgroundTransparency = 1
+CountText.TextColor3 = Color3.new(1,1,1)
+CountText.Font = Enum.Font.SourceSansBold
+CountText.TextSize = 23
+CountText.Text = ""
+
+--================ 滚动菜单 =================--
+
+local Scroll = Instance.new("ScrollingFrame")
+Scroll.Parent = Main
+Scroll.Position = UDim2.new(0,0,0,40)
+Scroll.Size = UDim2.new(1,0,0,260)
+Scroll.CanvasSize = UDim2.new(0,0,0,450)
+Scroll.ScrollBarThickness = 3
+Scroll.BackgroundTransparency = 1
+Scroll.Visible = false
+
+local Layout = Instance.new("UIListLayout")
+Layout.Parent = Scroll
+Layout.Padding = UDim.new(0,5)
+
+local Open = false
+
+OpenButton.MouseButton1Click:Connect(function()
+
+    Open = not Open
+
+    if Open then
+
+        Main.Size = UDim2.new(0,190,0,305)
+        Scroll.Visible = true
+        OpenButton.Text = "-"
+
+    else
+
+        Main.Size = UDim2.new(0,190,0,35)
+        Scroll.Visible = false
+        OpenButton.Text = "+"
+    end
+end)
+
+--================ 手机拖动 =================--
+
+local dragging = false
+local dragStart
+local startPos
+
+Title.InputBegan:Connect(function(input)
+
+    if input.UserInputType == Enum.UserInputType.Touch
+    or input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+        dragging = true
+        dragStart = input.Position
+        startPos = Main.Position
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+
+    if input.UserInputType == Enum.UserInputType.Touch
+    or input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+        dragging = false
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+
+    if dragging and
+    (input.UserInputType == Enum.UserInputType.Touch
+    or input.UserInputType == Enum.UserInputType.MouseMovement) then
+
+        local delta = input.Position - dragStart
+
+        Main.Position =
+            UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+    end
+end)
+
+--================ 开关 =================--
+
+local function CreateToggle(name,flag)
+
+    local Button = Instance.new("TextButton")
+    Button.Parent = Scroll
+    Button.Size = UDim2.new(1,-8,0,35)
+    Button.BackgroundColor3 = Color3.fromRGB(28,28,28)
+    Button.TextColor3 = Color3.new(1,1,1)
+    Button.Font = Enum.Font.SourceSansBold
+    Button.TextSize = 19
+
+    Instance.new("UICorner",Button)
+
+    local function Update()
+
+        Button.Text =
+            name.." : "..(Settings[flag] and "ON" or "OFF")
+    end
+
+    Update()
+
+    Button.MouseButton1Click:Connect(function()
+
+        Settings[flag] = not Settings[flag]
+        Update()
+    end)
+end
+
+CreateToggle("总开关","Enabled")
+CreateToggle("方框","Box")
+CreateToggle("名字","Name")
+CreateToggle("血量","Health")
+CreateToggle("距离","Distance")
+CreateToggle("射线","Tracer")
+CreateToggle("NPC透视","NPC")
+CreateToggle("队伍检测","TeamCheck")
+
+--================ ESP缓存 =================--
+
+local ESP = {}
+local NPCESP = {}
+
+--================ 创建绘制 =================--
+
+local function CreateDrawings(color)
+
+    local tbl = {}
+
+    local Box = Drawing.new("Square")
+    Box.Visible = false
+    Box.Color = color
+    Box.Thickness = 1
+    Box.Filled = false
+
+    local Name = Drawing.new("Text")
+    Name.Visible = false
+    Name.Center = true
+    Name.Outline = true
+    Name.Size = 13
+    Name.Color = Color3.new(1,1,1)
+
+    local Health = Drawing.new("Text")
+    Health.Visible = false
+    Health.Center = true
+    Health.Outline = true
+    Health.Size = 13
+    Health.Color = Color3.fromRGB(0,255,0)
+
+    local Distance = Drawing.new("Text")
+    Distance.Visible = false
+    Distance.Center = true
+    Distance.Outline = true
+    Distance.Size = 13
+    Distance.Color = Color3.fromRGB(255,255,0)
+
+    local Tracer = Drawing.new("Line")
+    Tracer.Visible = false
+    Tracer.Color = Color3.new(1,1,1)
+
+    tbl.Box = Box
+    tbl.Name = Name
+    tbl.Health = Health
+    tbl.Distance = Distance
+    tbl.Tracer = Tracer
+
+    return tbl
+end
+
+local function Hide(draw)
+
+    for _,v in pairs(draw) do
+        v.Visible = false
+    end
+end
+
+--================ 玩家初始化 =================--
+
+for _,v in pairs(Players:GetPlayers()) do
+
+    if v ~= LP then
+        ESP[v] = CreateDrawings(Color3.fromRGB(255,0,0))
+    end
+end
+
+Players.PlayerAdded:Connect(function(v)
+
+    if v ~= LP then
+        ESP[v] = CreateDrawings(Color3.fromRGB(255,0,0))
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(v)
+
+    if ESP[v] then
+
+        for _,x in pairs(ESP[v]) do
+            x:Remove()
+        end
+
+        ESP[v] = nil
+    end
+end)
+
+--================ ESP更新 =================--
+
+local function UpdateESP(char,draw,name)
+
+    local Hum =
+        char:FindFirstChildOfClass("Humanoid")
+
+    local HRP =
+        char:FindFirstChild("HumanoidRootPart")
+
+    local Head =
+        char:FindFirstChild("Head")
+
+    if not Hum
+    or not HRP
+    or not Head
+    or Hum.Health <= 0
+    or not char.Parent
+    or not HRP:IsDescendantOf(workspace) then
+
+        Hide(draw)
+        return false
+    end
+
+    local RootPos,Visible =
+        Camera:WorldToViewportPoint(HRP.Position)
+
+    if RootPos.Z <= 0 then
+
+        Hide(draw)
+        return false
+    end
+
+    local HeadPos =
+        Camera:WorldToViewportPoint(
+            Head.Position + Vector3.new(0,0.5,0)
+        )
+
+    local LegPos =
+        Camera:WorldToViewportPoint(
+            HRP.Position - Vector3.new(0,3,0)
+        )
+
+    local Height =
+        math.abs(HeadPos.Y - LegPos.Y)
+
+    local Width =
+        Height / 2
+
+    local X =
+        RootPos.X - Width / 2
+
+    local Y =
+        RootPos.Y - Height / 2
+
+    -- BOX
+
+    draw.Box.Size =
+        Vector2.new(Width,Height)
+
+    draw.Box.Position =
+        Vector2.new(X,Y)
+
+    draw.Box.Visible =
+        Settings.Box
+
+    -- NAME
+
+    draw.Name.Text = name
+
+    draw.Name.Position =
+        Vector2.new(
+            RootPos.X,
+            Y - 15
+        )
+
+    draw.Name.Visible =
+        Settings.Name
+
+    -- HEALTH
+
+    draw.Health.Text =
+        "HP : "..math.floor(Hum.Health)
+
+    draw.Health.Position =
+        Vector2.new(
+            RootPos.X,
+            Y + Height + 2
+        )
+
+    draw.Health.Visible =
+        Settings.Health
+
+    -- DISTANCE
+
+    if LP.Character
+    and LP.Character:FindFirstChild("HumanoidRootPart") then
+
+        local Dist =
+            math.floor(
+                (
+                    LP.Character.HumanoidRootPart.Position
+                    - HRP.Position
+                ).Magnitude
+            )
+
+        draw.Distance.Text =
+            Dist.."M"
+
+        draw.Distance.Position =
+            Vector2.new(
+                RootPos.X,
+                Y + Height + 16
+            )
+
+        draw.Distance.Visible =
+            Settings.Distance
+    end
+
+    -- TRACER
+
+    draw.Tracer.From =
+        Vector2.new(
+            Camera.ViewportSize.X/2,
+            Camera.ViewportSize.Y
+        )
+
+    draw.Tracer.To =
+        Vector2.new(
+            RootPos.X,
+            Y + Height
+        )
+
+    draw.Tracer.Visible =
+        Settings.Tracer
+
+    return true
+end
+
+--================ 主循环 =================--
+
+RunService.RenderStepped:Connect(function()
+
+    local PlayerCount = 0
+    local NPCCount = 0
+
+    -- 总关闭
+
+    if not Settings.Enabled then
+
+        for _,v in pairs(ESP) do
+            Hide(v)
+        end
+
+        for _,v in pairs(NPCESP) do
+            Hide(v)
+        end
+
+        CountText.Text = ""
+
+        return
+    end
+
+    -- 玩家ESP
+
+    for Player,Draw in pairs(ESP) do
+
+        local Char = Player.Character
+
+        if Char then
+
+            if Settings.TeamCheck
+            and Player.Team == LP.Team then
+
+                Hide(Draw)
+
+            else
+
+                local OK =
+                    UpdateESP(
+                        Char,
+                        Draw,
+                        Player.Name
+                    )
+
+                if OK then
+                    PlayerCount += 1
+                end
+            end
+
+        else
+            Hide(Draw)
+        end
+    end
+
+    -- NPC ESP
+
+    if Settings.NPC then
+
+        for _,NPC in pairs(workspace:GetChildren()) do
+
+            if NPC:IsA("Model")
+            and NPC ~= LP.Character
+            and not Players:GetPlayerFromCharacter(NPC) then
+
+                local Hum =
+                    NPC:FindFirstChildOfClass("Humanoid")
+
+                local HRP =
+                    NPC:FindFirstChild("HumanoidRootPart")
+
+                local Head =
+                    NPC:FindFirstChild("Head")
+
+                if Hum
+                and HRP
+                and Head
+                and Hum.Health > 0
+                and NPC.Parent
+                and HRP:IsDescendantOf(workspace) then
+
+                    if not NPCESP[NPC] then
+
+                        NPCESP[NPC] =
+                            CreateDrawings(
+                                Color3.fromRGB(255,170,0)
+                            )
+                    end
+
+                    local OK =
+                        UpdateESP(
+                            NPC,
+                            NPCESP[NPC],
+                            NPC.Name
+                        )
+
+                    if OK then
+                        NPCCount += 1
+                    end
+
+                else
+
+                    if NPCESP[NPC] then
+                        Hide(NPCESP[NPC])
+                    end
+                end
+            end
+        end
+
+    else
+
+        for _,v in pairs(NPCESP) do
+            Hide(v)
+        end
+    end
+
+    -- 顶部统计
+
+    CountText.Text =
+        "真人: "..PlayerCount..
+        " | NPC: "..NPCCount
+end)
