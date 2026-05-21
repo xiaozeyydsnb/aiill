@@ -151,6 +151,7 @@ local function CreateDrawings(color)
     local Tracer = Drawing.new("Line")
     Tracer.Visible = false; Tracer.Color = Color3.new(1,1,1)
     tbl.Box = Box; tbl.Name = Name; tbl.Health = Health; tbl.Distance = Distance; tbl.Tracer = Tracer
+    -- 注意：移除了血量条相关Drawing（hBar, hBg, hBorder）
     return tbl
 end
 
@@ -203,10 +204,11 @@ local function UpdateESP(char,draw,name)
     draw.Health.Position = Vector2.new(RootPos.X, Y + Height + 2)
     draw.Health.Visible = Settings.Health
 
+    -- 距离显示位置移到方框上方（原来在底部下方）
     if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
         local Dist = math.floor((LP.Character.HumanoidRootPart.Position - HRP.Position).Magnitude)
         draw.Distance.Text = Dist.."M"
-        draw.Distance.Position = Vector2.new(RootPos.X, Y + Height + 16)
+        draw.Distance.Position = Vector2.new(RootPos.X, Y - 30)   -- 原来：Y + Height + 16
         draw.Distance.Visible = Settings.Distance
     end
 
@@ -1291,7 +1293,6 @@ TabCommon:Toggle({
         afkRunning = v
         if v then
             startAFK()
-            -- 使用全局Notify（如果不存在则忽略）
             pcall(function() Notify("防挂机", "已开启", 2, "success") end)
         else
             stopAFK()
